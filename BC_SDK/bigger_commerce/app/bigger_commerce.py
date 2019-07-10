@@ -203,10 +203,7 @@ def add_item(request, body=None, user=None):
 
     user = get_cookie(request)
 
-    print (user)
-    print (user.bc_id)
-    print (user.cart_id)
-    print (user.cart_id)
+
 
     if user:
         # Remember to add cart id to user model
@@ -237,7 +234,7 @@ def add_item(request, body=None, user=None):
 
         return True
 
-    return False
+    return "Please Login"
 #updates cart item
 @hug.put('/update_cart_item')#NOTICE ME SENPAI
 def update_cart_item(request, body=None):#prob just going to be a quantity change
@@ -246,63 +243,73 @@ def update_cart_item(request, body=None):#prob just going to be a quantity chang
 
     data = body
 
-    print (data['pid'])
-    print (data['pid'])
+    if user:
 
+        if user.cart_id:
+            update_cart_product(user.cart_id, data['pid'], data['quantity'])#update prodcut quantity essentially
 
-    if user.cart_id:
-        update_cart_product(user.cart_id, data['pid'], data['quantity'])#update prodcut quantity essentially
+        else: return False
 
-    else: return False
+        return True
 
-    return True
+    return "Please Login"
 #deletes cart item
 @hug.delete('/delete_product')#NOTICE ME SENPAI
 def delete_item(request, body=None):
-
     user = get_cookie(request)
 
     data = body
 
-    if user.cart_id:
-        delete_cart_product(data['pid'], user.cart_id)#delete prodcut from the cart
+    if user:
 
-    else: return False
+        if user.cart_id:
+            delete_cart_product(data['pid'], user.cart_id)#delete prodcut from the cart
 
-    return True
+        else: return False
 
+        return True
+
+    return "Please Login"
 #returns cart for current user logged in
 @hug.get('/get_cart')
 def get_user_cart(request):
 
     user = get_cookie(request)
 
-    if user.cart_id != None:
-        cart = get_cart(user.cart_id)#reutrn user's cart
+    if user:
 
-    else: return False
+        if user.cart_id != None:
+            cart = get_cart(user.cart_id)  #reutrn user's cart
 
-    return cart
+        else:
+            return False
 
+        return cart
+
+    return "Please Login"
 #deletes whole cart
 @hug.delete('/delete_cart')
 def delete_user_cart(request):
 
-    try:
-        user = get_cookie(request)
-    except: return False
-
-    session = SESSION()
-    response = delete_cart_product(user.cart_id)
-
-    user.cart_id = ''
-
-    session.add(user)
-    session.commit()
-    session.close()
 
 
-    return response
+    user = get_cookie(request)
+
+    if user:
+
+        session = SESSION()
+        response = delete_cart_product(user.cart_id)
+
+        user.cart_id = ''
+
+        session.add(user)
+        session.commit()
+        session.close()
+
+
+        return response
+
+    return "Please Login"
 
 #takes shipping, billing, and payment info and checks out cart of the current user
 @hug.post('/order')
@@ -311,84 +318,90 @@ def order(request, body=None):
     data = body
     user = get_cookie(request)
 
-    session = SESSION()
+    if user:
 
-    cart = session.query(alembic.Carts) \
-        .filter(alembic.Carts.bc_id == user.cart_id) \
-        .one()
+        if user.cart_id:
 
+            session = SESSION()
 
-    user.address1 = data['address1']
-    user.address2 = data['address2']
-    user.city = data['city']
-    user.state_or_province = data['state_or_province']
-    user.state_or_province_code = data['state_or_province_code']
-    user.country_code = data['country_code']
-    user.postal_code = data['postal_code']
-    user.billing_address1 = data['billing_address1']
-    user.billing_address2 = data['billing_address2']
-    user.billing_city = data['billing_city']
-    user.billing_state = data['billing_state']
-    user.billing_country_code = data['billing_country_code']
-    user.billing_state_code = data['billing_state_code']
-    user.billing_postal_code = data['billing_postal_code']
-    card_number = data['card_number']
-    card_holder_name = data['card_holder_name']
-    expiry_month = data['expiry_month']
-    expiry_year = data['expiry_year']
-    verification_value = data['verification_value']
-
-    billing_response = add_billing(user, cart.bc_id)
+            cart = session.query(alembic.Carts) \
+                .filter(alembic.Carts.bc_id == user.cart_id) \
+                .one()
 
 
-    shipping_response = add_shipping(user, cart.bc_id)
-    print (shipping_response)
-    print (billing_response)
+            user.address1 = data['address1']
+            user.address2 = data['address2']
+            user.city = data['city']
+            user.state_or_province = data['state_or_province']
+            user.state_or_province_code = data['state_or_province_code']
+            user.country_code = data['country_code']
+            user.postal_code = data['postal_code']
+            user.billing_address1 = data['billing_address1']
+            user.billing_address2 = data['billing_address2']
+            user.billing_city = data['billing_city']
+            user.billing_state = data['billing_state']
+            user.billing_country_code = data['billing_country_code']
+            user.billing_state_code = data['billing_state_code']
+            user.billing_postal_code = data['billing_postal_code']
+            card_number = data['card_number']
+            card_holder_name = data['card_holder_name']
+            expiry_month = data['expiry_month']
+            expiry_year = data['expiry_year']
+            verification_value = data['verification_value']
 
-    shipping_response = shipping_response.json()
-
-    print (shipping_response)
-    shipping_id = shipping_response['data']['consignments'][0]['id']
-    consignment_id = shipping_response['data']['consignments'][0]['available_shipping_options'][0]['id']
-
-    print (consignment_id)
-    print(shipping_id)
-
-    cart.shipping_option_id = shipping_id
-    cart.consignment_id = consignment_id
-
-    shipping = update_shipping(consignment_id, shipping_id, cart.bc_id)
-
-    order_id = create_order(cart.bc_id)
-    order_id = order_id.json()
-    order_id = order_id['data']['id']
-
-    cart.order_id = order_id
+            billing_response = add_billing(user, cart.bc_id)
 
 
-    payment = payment_token(order_id)
-    payment = payment.json()
-    payment = payment['data']['id']
+            shipping_response = add_shipping(user, cart.bc_id)
+            print (shipping_response)
+            print (billing_response)
 
-    cart.payment_token = payment
+            shipping_response = shipping_response.json()
 
-    final = process_payment(payment,card_number,card_holder_name, expiry_month,expiry_year,verification_value )
+            print (shipping_response)
+            shipping_id = shipping_response['data']['consignments'][0]['id']
+            consignment_id = shipping_response['data']['consignments'][0]['available_shipping_options'][0]['id']
 
-    session.add(user)
-    session.add(cart)
-    session.commit()
-    session.close()
+            print (consignment_id)
+            print(shipping_id)
+
+            cart.shipping_option_id = shipping_id
+            cart.consignment_id = consignment_id
+
+            shipping = update_shipping(consignment_id, shipping_id, cart.bc_id)
+
+            order_id = create_order(cart.bc_id)
+            order_id = order_id.json()
+            order_id = order_id['data']['id']
+
+            cart.order_id = order_id
 
 
-    # order_id = create_order(cart.bc_id)#NOTICE ME SENPAI
-    #
-    # cart.order_id = order_id
-    #
-    # print (cart.order_id)
+            payment = payment_token(order_id)
+            payment = payment.json()
+            payment = payment['data']['id']
 
-    # shipping_method = add_shipping(user)#can also be added at checkout
-    # update_shipping(shipping_method) # // can be implimented in another call if we have multiple shipping options, otherwise use here
-    # payment_token(user)#create payment token
-    # process_payment(user)#pay token
-    #ordeer should be marked 'paid' in BC
-    return final
+            cart.payment_token = payment
+
+            final = process_payment(payment,card_number,card_holder_name, expiry_month,expiry_year,verification_value )
+
+            session.add(user)
+            session.add(cart)
+            session.commit()
+            session.close()
+
+
+            # order_id = create_order(cart.bc_id)#NOTICE ME SENPAI
+            #
+            # cart.order_id = order_id
+            #
+            # print (cart.order_id)
+
+            # shipping_method = add_shipping(user)#can also be added at checkout
+            # update_shipping(shipping_method) # // can be implimented in another call if we have multiple shipping options, otherwise use here
+            # payment_token(user)#create payment token
+            # process_payment(user)#pay token
+            #ordeer should be marked 'paid' in BC
+            return final
+        return "User Has No Cart"
+    return "Please Login"
