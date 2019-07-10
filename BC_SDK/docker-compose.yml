@@ -1,0 +1,23 @@
+version: "3.6"
+services:
+  pgdb:
+    build: ./postgres
+    volumes:
+      - postgres_vol:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_USER: bigger_commerce
+      POSTGRES_DB: bigger_commerce
+  bigger_commerce:
+    build: ./bigger_commerce
+    volumes:
+      - ./bigger_commerce/app:/var/lib/bigger_commerce/app
+    ports:
+      - "8000:8000"
+    environment:
+      BIGGER_COMMERCE_USER: bigger_commerce
+      BIGGER_COMMERCE_PASS: ${BIGGER_COMMERCE_PASS}
+    depends_on:
+      - pgdb
+
+volumes:
+  postgres_vol:
