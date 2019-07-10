@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 from .api_calls import delete_cart_product, create_user, get_all_users, get_user, add_product, create_cart, \
     add_cart_user, add_billing, add_shipping, update_shipping, test_it, get_cart, create_order, process_payment, \
-    payment_token, update_cart_product
+    payment_token, update_cart_product, delete_cart
 import json
 import falcon
 import os
@@ -84,6 +84,15 @@ def test(response, body=None):
     session = SESSION()
 
     data = body
+
+    try:
+        user = session.query(alembic.Users) \
+            .filter(alembic.Users.email == str(data['email'])) \
+            .one()
+
+        return str(user.email) + ' already exists'
+
+    except: pass
 
     password_hash = generate_password_hash(str(data['password']))
 
@@ -165,7 +174,7 @@ def dashboard(request,logged_in=None):
     if logged_in:
         return 'hello {}'.format(name)
     else:
-        return 'please login'
+        return 'Please Login'
 #logs out user and takes away login token
 @hug.get('/logout')
 def call_logout(response):
@@ -282,7 +291,7 @@ def get_user_cart(request):
             cart = get_cart(user.cart_id)  #reutrn user's cart
 
         else:
-            return False
+            return "You Have No Cart"
 
         return cart
 
@@ -298,9 +307,9 @@ def delete_user_cart(request):
     if user:
 
         session = SESSION()
-        response = delete_cart_product(user.cart_id)
+        response = delete_cart(user.cart_id)
 
-        user.cart_id = ''
+        user.cart_id = None
 
         session.add(user)
         session.commit()
