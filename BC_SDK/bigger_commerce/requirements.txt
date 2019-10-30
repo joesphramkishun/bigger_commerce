@@ -36,5 +36,5 @@ tzlocal==1.4
 urllib3==1.21.1
 urlopen==1.0.0
 webassets==0.11.1
-Werkzeug==0.10.4
+Werkzeug==0.15.3
 hug==2.5.4
